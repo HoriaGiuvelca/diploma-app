@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Diploma Generator</title>
@@ -18,7 +19,8 @@
       text-align: center;
     }
 
-    input, button {
+    input,
+    button {
       font-size: 18px;
       padding: 10px;
       margin: 10px;
@@ -32,7 +34,8 @@
 
     /* DIPLOMA PAGE */
     #diploma {
-      width: 1123px;      /* A4 landscape @ 96dpi */
+      width: 1123px;
+      /* A4 landscape @ 96dpi */
       height: 794px;
       background: white;
       margin: auto;
@@ -72,11 +75,7 @@
 
   <h2>Generate Your Diploma</h2>
 
-  <input
-    type="text"
-    id="nameInput"
-    placeholder="Enter your full name"
-  />
+  <input type="text" id="nameInput" placeholder="Enter your full name" />
 
   <button onclick="generatePDF()">Download Diploma (PDF)</button>
 
@@ -84,6 +83,13 @@
   <div id="diploma">
     <!-- Optional background -->
     <img src="diploma-bg.png" class="background" />
+
+    <h1 id="eventTitle">Event Name</h1>
+    <p>This certifies that</p>
+    <h2 id="nameField">Your Name</h2>
+    <p>
+      has successfully completed the program.
+    </p>
 
     <h1>Certificate of Completion</h1>
     <p>This certifies that</p>
@@ -94,6 +100,17 @@
   </div>
 
   <script>
+    // Read URL parameter (e.g. ?event=FTC%202026)
+    function getEventName() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get("event") || "Certificate of Completion";
+    }
+
+    // Set event title on page load
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("eventTitle").innerText = getEventName();
+    });
+
     function generatePDF() {
       const name = document.getElementById("nameInput").value.trim();
 
@@ -112,7 +129,11 @@
         filename: "diploma.pdf",
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2 },
-        jsPDF: { unit: "px", format: [1123, 794], orientation: "landscape" }
+        jsPDF: {
+          unit: "px",
+          format: [1123, 794],
+          orientation: "landscape"
+        }
       };
 
       html2pdf()
@@ -126,4 +147,5 @@
   </script>
 
 </body>
+
 </html>
