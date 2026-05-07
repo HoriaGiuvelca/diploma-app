@@ -234,7 +234,15 @@
       doc.addImage(imgData, 'JPEG', 0, 0, PDF_W, PDF_H);
 
       const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
-      if (isMobile) {
+      if (isMobile && navigator.canShare) {
+        const pdfBlob = doc.output('blob');
+        const pdfFile = new File([pdfBlob], `Diploma - ${name}.pdf`, { type: 'application/pdf' });
+        if (navigator.canShare({ files: [pdfFile] })) {
+          navigator.share({ files: [pdfFile], title: `Diploma - ${name}` });
+        } else {
+          doc.output('dataurlnewwindow');
+        }
+      } else if (isMobile) {
         doc.output('dataurlnewwindow');
       } else {
         doc.save(`Diploma - ${name}.pdf`);
