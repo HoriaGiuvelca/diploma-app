@@ -214,7 +214,7 @@
     nameInput.addEventListener('input', drawPreview);
 
     // PDF download
-    document.getElementById('downloadBtn').addEventListener('click', async () => {
+    document.getElementById('downloadBtn').addEventListener('click', () => {
       const name = nameInput.value.trim();
       if (!name) { alert('Introduceți mai întâi un nume.'); return; }
 
@@ -233,28 +233,15 @@
       const imgData = canvas.toDataURL('image/jpeg', 1.0);
       doc.addImage(imgData, 'JPEG', 0, 0, PDF_W, PDF_H);
 
-      const fileName = `Diploma - ${name}.pdf`;
-      const pdfBlob = doc.output('blob');
-      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
-
-      // Use Web Share API (iOS Safari) when sharing a PDF file is supported
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        try {
-          await navigator.share({ files: [pdfFile], title: fileName });
-          return;
-        } catch (err) {
-          if (err.name === 'AbortError') return; // user cancelled — do nothing
-          // Fall through to normal download if share fails for other reasons
-        }
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+      if (isMobile) {
+        // Open in a new tab so the browser's built-in PDF viewer handles it
+        const blob = doc.output('blob');
+        const url  = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      } else {
+        doc.save(`Diploma - ${name}.pdf`);
       }
-
-      // Fallback: trigger a normal file download
-      const url = URL.createObjectURL(pdfBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
     });
   </script>
 </body>
