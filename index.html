@@ -235,10 +235,7 @@
 
       const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
       if (isMobile) {
-        // Open in a new tab so the browser's built-in PDF viewer handles it
-        const blob = doc.output('blob');
-        const url  = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        doc.output('dataurlnewwindow');
       } else {
         doc.save(`Diploma - ${name}.pdf`);
       }
