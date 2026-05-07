@@ -233,12 +233,15 @@
       const imgData = canvas.toDataURL('image/jpeg', 1.0);
       doc.addImage(imgData, 'JPEG', 0, 0, PDF_W, PDF_H);
 
-      // Use a data URI anchor instead of blob: so mobile browsers (iOS Safari) download correctly
-      const pdfDataUri = doc.output('datauristring');
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = pdfDataUri;
+      a.href = url;
       a.download = `Diploma - ${name}.pdf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
     });
   </script>
 </body>
