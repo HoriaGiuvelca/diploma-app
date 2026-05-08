@@ -125,7 +125,7 @@ app.post('/send-diploma-email', async (req, res) => {
       from: SMTP_FROM,
       to: email,
       subject: `Diploma pentru ${name}`,
-      text: `Salut ${name},\n\nAtașat găsești diploma ta.\n\nCu drag,\nEchipa Rotary Club Pitești Unity.`,
+      text: `Buna ziua ${name},\n\nAtașat găsiți diploma dvs.\n\nCu drag,\nEchipa Rotary Club Pitești Unity.`,
       attachments: [
         {
           filename: fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`,
