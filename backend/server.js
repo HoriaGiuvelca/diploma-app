@@ -3,21 +3,17 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 
 const app = express();
 
 const PORT = Number(process.env.PORT) || 8080;
-const SMTP_HOST = process.env.SMTP_HOST || '';
-const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
-const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
-const SMTP_USER = process.env.SMTP_USER || '';
-const SMTP_PASS = process.env.SMTP_PASS || '';
-const SMTP_FROM = process.env.SMTP_FROM || SMTP_USER;
-const SMTP_CONNECTION_TIMEOUT = Number(process.env.SMTP_CONNECTION_TIMEOUT) || 20000;
-const SMTP_GREETING_TIMEOUT = Number(process.env.SMTP_GREETING_TIMEOUT) || 15000;
-const SMTP_SOCKET_TIMEOUT = Number(process.env.SMTP_SOCKET_TIMEOUT) || 30000;
-const SMTP_TLS_REJECT_UNAUTHORIZED = process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== 'false';
+const ENABLE_EMAIL_FEATURE = process.env.ENABLE_EMAIL_FEATURE !== 'false';
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || '';
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || '';
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN || '';
+const GMAIL_SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL || '';
+const GMAIL_FROM = process.env.GMAIL_FROM || GMAIL_SENDER_EMAIL;
 const FRONTEND_DIR = path.resolve(__dirname, '..');
 const INDEX_FILE = path.join(FRONTEND_DIR, 'index.html');
 
@@ -40,37 +36,56 @@ function sanitizeFileName(value) {
     .trim();
 }
 
-function ensureSmtpConfigured() {
-  return Boolean(SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS && SMTP_FROM);
+function ensureGmailConfigured() {
+  return Boolean(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN && GMAIL_SENDER_EMAIL && GMAIL_FROM);
 }
 
-function createTransporter() {
-  const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
-    connectionTimeout: SMTP_CONNECTION_TIMEOUT,
-    greetingTimeout: SMTP_GREETING_TIMEOUT,
-    socketTimeout: SMTP_SOCKET_TIMEOUT,
-    tls: {
-      rejectUnauthorized: SMTP_TLS_REJECT_UNAUTHORIZED,
-      minVersion: 'TLSv1.2'
-    },
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS
-    }
-  });
+function buildRawEmail({ from, to, subject, text, fileName, pdfBuffer }) {
+  const boundary = `rotary-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const encodedSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
+  const normalizedFileName = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
 
-  transporter.on('error', (error) => {
-    console.error('[SMTP transport error]', {
-      code: error?.code,
-      command: error?.command,
-      message: error?.message
-    });
-  });
+  const message = [
+    `From: ${from}`,
+    `To: ${to}`,
+    'MIME-Version: 1.0',
+    `Subject: ${encodedSubject}`,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    text,
+    '',
+    `--${boundary}`,
+    `Content-Type: application/pdf; name="${normalizedFileName}"`,
+    `Content-Disposition: attachment; filename="${normalizedFileName}"`,
+    'Content-Transfer-Encoding: base64',
+    '',
+    pdfBuffer.toString('base64').replace(/(.{76})/g, '$1\r\n'),
+    '',
+    `--${boundary}--`
+  ].join('\r\n');
 
-  return transporter;
+  return Buffer.from(message, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+async function sendViaGmailApi({ from, to, subject, text, fileName, pdfBuffer }) {
+  const oauth2Client = new google.auth.OAuth2(GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET);
+  oauth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
+
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const raw = buildRawEmail({ from, to, subject, text, fileName, pdfBuffer });
+
+  await gmail.users.messages.send({
+    userId: 'me',
+    requestBody: { raw }
+  });
 }
 
 process.on('uncaughtException', (error) => {
@@ -85,12 +100,18 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ ok: true });
 });
 
+app.get('/app-config', (_req, res) => {
+  res.status(200).json({
+    enableEmailFeature: ENABLE_EMAIL_FEATURE
+  });
+});
+
 app.post('/send-diploma-email', async (req, res) => {
   try {
-    if (!ensureSmtpConfigured()) {
+    if (!ensureGmailConfigured()) {
       return res.status(500).json({
         ok: false,
-        error: 'SMTP is not configured. Set SMTP_* variables.'
+        error: 'Email is not configured. Set GMAIL_* variables.'
       });
     }
 
@@ -120,19 +141,15 @@ app.post('/send-diploma-email', async (req, res) => {
       return res.status(413).json({ ok: false, error: 'PDF payload too large.' });
     }
 
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: SMTP_FROM,
+    const subject = `Diploma pentru ${name}`;
+    const text = `Buna ziua ${name},\n\nAtașat găsiți diploma dvs.\n\nCu drag,\nEchipa Rotary Club Pitești Unity.`;
+    await sendViaGmailApi({
+      from: GMAIL_FROM,
       to: email,
-      subject: `Diploma pentru ${name}`,
-      text: `Buna ziua ${name},\n\nAtașat găsiți diploma dvs.\n\nCu drag,\nEchipa Rotary Club Pitești Unity.`,
-      attachments: [
-        {
-          filename: fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
+      subject,
+      text,
+      fileName,
+      pdfBuffer
     });
 
     return res.status(200).json({ ok: true });
@@ -146,10 +163,10 @@ app.post('/send-diploma-email', async (req, res) => {
     });
 
     let message = 'Nu s-a putut trimite email-ul.';
-    if (code === 'ECONNRESET' || code === 'ESOCKET' || code === 'ETIMEDOUT') {
-      message = 'Eroare de conexiune SMTP. Contactați administratorul.';
-    } else if (code === 'EAUTH') {
-      message = 'Autentificare SMTP eșuată. Contactați administratorul.';
+    if (code === 401 || code === '401' || error?.status === 401) {
+      message = 'Autentificare Gmail API eșuată. Verificați credențialele Google.';
+    } else if (error?.response?.status === 403) {
+      message = 'Acces Gmail API refuzat. Verificați scope-ul si contul autorizat.';
     }
 
     return res.status(500).json({
@@ -160,5 +177,5 @@ app.post('/send-diploma-email', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`SMTP backend running on port ${PORT}`);
+  console.log(`Email backend running on port ${PORT}`);
 });

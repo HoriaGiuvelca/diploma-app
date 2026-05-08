@@ -1,4 +1,4 @@
-# Minimal SMTP Backend
+# Minimal Gmail API Backend
 
 This backend exposes a single endpoint used by your frontend:
 
@@ -36,7 +36,7 @@ On Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-4. Edit `.env` with your SMTP credentials.
+4. Edit `.env` with your Gmail API credentials.
 5. Start server:
 
 ```bash
@@ -85,6 +85,6 @@ For production, replace this with your deployed backend URL.
 
 ## Notes
 
-- Gmail SMTP requires an app password (2FA enabled).
-- For better deliverability, use a dedicated SMTP provider like Brevo, Mailgun, Resend SMTP, or SendGrid SMTP.
+- Gmail API requires OAuth credentials (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`).
+- Ensure the sender account used for OAuth matches `GMAIL_SENDER_EMAIL`.
 - Restrict `CORS_ORIGIN` to your frontend domain in production.

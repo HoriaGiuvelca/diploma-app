@@ -1,8 +1,8 @@
 {
-  "name": "diploma-smtp-backend",
+  "name": "diploma-email-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Minimal SMTP backend for diploma PDF emails",
+  "description": "Minimal Gmail API backend for diploma PDF emails",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -14,6 +14,6 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.19.2",
-    "nodemailer": "^6.9.14"
+    "googleapis": "^144.0.0"
   }
 }
