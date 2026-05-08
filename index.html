@@ -139,11 +139,11 @@
   <div class="card">
     <label for="nameInput">Numele participantului</label>
     <input type="text" id="nameInput" placeholder="Introduceți numele complet…" autofocus />
-    <button id="downloadBtn">⬇ Descărcare diplomă (PDF)</button>
+    <button id="downloadBtn">📄 Vizualizați diploma (PDF)</button>
     <div id="emailSection">
       <label for="emailInput">Email (opțional)</label>
       <input type="email" id="emailInput" placeholder="exemplu@email.com" />
-      <button id="sendBtn" class="secondary-btn">✉ Trimite diploma pe email</button>
+      <button id="sendBtn" class="secondary-btn">✉ Trimiteți diploma pe email</button>
       <p id="sendStatus" class="send-status" aria-live="polite"></p>
     </div>
   </div>
@@ -300,14 +300,29 @@
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
 
-    // PDF download
+    // Open PDF in a new tab/window (no forced download)
     document.getElementById('downloadBtn').addEventListener('click', () => {
       const name = nameInput.value.trim();
       if (!name) { alert('Introduceți mai întâi un nume.'); return; }
 
       const doc = createDiplomaPdf();
-      const safeName = sanitizeFileName(name) || 'Diploma';
-      doc.save(`Diploma - ${safeName}.pdf`);
+      const isMobile = /Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
+      const newWindow = window.open('', '_blank');
+      if (!newWindow) {
+        alert('Browserul a blocat deschiderea PDF-ului. Permite pop-up-urile și încearcă din nou.');
+        return;
+      }
+
+      if (isMobile) {
+        // On phones, open data URI directly to avoid forced blob downloads.
+        newWindow.location.href = doc.output('datauristring');
+      } else {
+        // On desktop (including Windows), blob URL is more reliable than large data URIs.
+        const blob = doc.output('blob');
+        const blobUrl = URL.createObjectURL(blob);
+        newWindow.location.href = blobUrl;
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      }
     });
 
     // Optional automatic email sending through a backend endpoint.
