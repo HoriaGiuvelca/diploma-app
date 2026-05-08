@@ -301,13 +301,32 @@
     }
 
     // PDF download
-    document.getElementById('downloadBtn').addEventListener('click', () => {
+    document.getElementById('downloadBtn').addEventListener('click', async () => {
       const name = nameInput.value.trim();
       if (!name) { alert('Introduceți mai întâi un nume.'); return; }
 
       const doc = createDiplomaPdf();
       const safeName = sanitizeFileName(name) || 'Diploma';
-      doc.save(`Diploma - ${safeName}.pdf`);
+      const fileName = `Diploma - ${safeName}.pdf`;
+
+      const pdfBlob = doc.output('blob');
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      // On mobile, use the Web Share API with only the file (no url/title)
+      // so the share sheet does not include the page link.
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        try {
+          await navigator.share({ files: [pdfFile] });
+          return;
+        } catch (e) {
+          // User cancelled share — do nothing.
+          if (e.name === 'AbortError') return;
+        }
+      }
+
+      // Desktop: direct download.
+      doc.save(fileName);
     });
 
     // Optional automatic email sending through a backend endpoint.
