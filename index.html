@@ -77,11 +77,30 @@
     button:active { background: #0d1560; }
 
     .secondary-btn {
-      margin-top: 10px;
       background: #455a64;
     }
 
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
     .secondary-btn:hover { background: #546e7a; }
+
+    #downloadBtn {
+      margin-bottom: 12px;
+    }
+
+    .send-status {
+      min-height: 1.4em;
+      margin-top: 10px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .send-status.success { color: #2e7d32; }
+    .send-status.error   { color: #c62828; }
 
     .note {
       margin-top: 10px;
@@ -120,13 +139,13 @@
   <div class="card">
     <label for="nameInput">Numele participantului</label>
     <input type="text" id="nameInput" placeholder="Introduceți numele complet…" autofocus />
+    <button id="downloadBtn">⬇ Descărcare diplomă (PDF)</button>
     <div id="emailSection">
       <label for="emailInput">Email (opțional)</label>
       <input type="email" id="emailInput" placeholder="exemplu@email.com" />
       <button id="sendBtn" class="secondary-btn">✉ Trimite diploma pe email</button>
-      <p class="note">Trimiterea automată pe email necesită un serviciu backend (sau un serviciu terț precum EmailJS).</p>
+      <p id="sendStatus" class="send-status" aria-live="polite"></p>
     </div>
-    <button id="downloadBtn">⬇ Descarcărcare diplomă (PDF)</button>
   </div>
 
   <div class="preview-wrapper">
@@ -166,13 +185,19 @@
     const emailSection = document.getElementById('emailSection');
     const emailInput = document.getElementById('emailInput');
     const sendBtn = document.getElementById('sendBtn');
+    const sendStatus = document.getElementById('sendStatus');
+
+    function showSendStatus(message, type) {
+      sendStatus.textContent = message;
+      sendStatus.className = 'send-status' + (type ? ' ' + type : '');
+    }
 
     // Toggle email feature (UI + logic): set true to enable, false to disable.
     const ENABLE_EMAIL_FEATURE = true;
 
     // Set your backend endpoint here to enable automatic email sending.
     // Expected JSON body: { name, email, fileName, pdfBase64 }
-    const EMAIL_API_URL = '';
+    const EMAIL_API_URL = '/send-diploma-email';
 
     if (!ENABLE_EMAIL_FEATURE) {
       emailSection.style.display = 'none';
@@ -295,10 +320,8 @@
         if (!email) { alert('Introduceți adresa de email.'); return; }
         if (!validateEmail(email)) { alert('Adresa de email nu este validă.'); return; }
 
-        if (!EMAIL_API_URL) {
-          alert('Trimiterea automată necesită backend. Configurează EMAIL_API_URL pentru a activa această funcție.');
-          return;
-        }
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Se trimite…';
 
         try {
           const doc = createDiplomaPdf();
@@ -317,12 +340,28 @@
           });
 
           if (!response.ok) {
-            throw new Error('Eroare la trimiterea email-ului.');
+            let backendMessage = 'Eroare la trimiterea email-ului.';
+            try {
+              const errorPayload = await response.json();
+              if (errorPayload && errorPayload.error) {
+                backendMessage = errorPayload.error;
+              }
+            } catch (_e) {
+              // Keep default message when response is not JSON.
+            }
+            throw new Error(backendMessage);
           }
 
-          alert('Diploma a fost trimisă pe email.');
+          showSendStatus('Diploma a fost trimisă pe email.', 'success');
         } catch (error) {
-          alert(error.message || 'A apărut o eroare la trimitere.');
+          if (error && error.message === 'Failed to fetch') {
+            showSendStatus('Serverul nu răspunde. Încearcă din nou.', 'error');
+          } else {
+            showSendStatus(error.message || 'A apărut o eroare la trimitere.', 'error');
+          }
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = '✉ Trimite diploma pe email';
         }
       });
     }
