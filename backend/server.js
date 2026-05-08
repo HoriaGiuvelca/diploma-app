@@ -13,7 +13,7 @@ const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || '';
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || '';
 const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN || '';
 const GMAIL_SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL || '';
-const GMAIL_FROM = process.env.GMAIL_FROM || GMAIL_SENDER_EMAIL;
+const GMAIL_FROM = "Rotary Club Pitesti Unity <giuvelcah@gmail.com>"
 const FRONTEND_DIR = path.resolve(__dirname, '..');
 const INDEX_FILE = path.join(FRONTEND_DIR, 'index.html');
 
