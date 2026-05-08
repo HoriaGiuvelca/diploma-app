@@ -36,8 +36,19 @@ function sanitizeFileName(value) {
     .trim();
 }
 
+function getMissingGmailVars() {
+  const required = [
+    ['GMAIL_CLIENT_ID', GMAIL_CLIENT_ID],
+    ['GMAIL_CLIENT_SECRET', GMAIL_CLIENT_SECRET],
+    ['GMAIL_REFRESH_TOKEN', GMAIL_REFRESH_TOKEN],
+    ['GMAIL_SENDER_EMAIL', GMAIL_SENDER_EMAIL]
+  ];
+
+  return required.filter(([, value]) => !value).map(([key]) => key);
+}
+
 function ensureGmailConfigured() {
-  return Boolean(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN && GMAIL_SENDER_EMAIL && GMAIL_FROM);
+  return getMissingGmailVars().length === 0;
 }
 
 function buildRawEmail({ from, to, subject, text, fileName, pdfBuffer }) {
@@ -109,9 +120,10 @@ app.get('/app-config', (_req, res) => {
 app.post('/send-diploma-email', async (req, res) => {
   try {
     if (!ensureGmailConfigured()) {
+      const missingVars = getMissingGmailVars();
       return res.status(500).json({
         ok: false,
-        error: 'Email is not configured. Set GMAIL_* variables.'
+        error: `Email is not configured. Missing env vars: ${missingVars.join(', ')}`
       });
     }
 
